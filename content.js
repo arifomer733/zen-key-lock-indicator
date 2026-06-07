@@ -2,14 +2,26 @@ const TOAST_ID = "zen-keylock-toast";
 const STYLE_ID = "zen-keylock-style";
 
 let activeCorner = "bottom-left";
-let isEnabled = false; // Initialized to false so that the first enable() call actually injects CSS
+let isEnabled = false;
 let isDismissed = false;
-let fadeTimeout = null;
+let accentColor = "#aac8ff";
 
 let states = {
     CapsLock: false,
     NumLock: false,
     ScrollLock: false
+};
+
+const LABELS = {
+    CapsLock: "Caps Lock",
+    NumLock: "Num Lock",
+    ScrollLock: "Scroll Lock"
+};
+
+const ICONS = {
+    CapsLock: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 9h-5v5H9v-5H4z"/><rect x="9" y="19" width="6" height="2" rx="1"/></svg>`,
+    NumLock: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="3"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="12" y1="10" x2="12" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/><line x1="9" y1="6" x2="15" y2="6"/></svg>`,
+    ScrollLock: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><polyline points="8 7 12 3 16 7"/><polyline points="8 17 12 21 16 17"/><line x1="6" y1="12" x2="18" y2="12"/></svg>`
 };
 
 // ─── CSS Styles ──────────────────────────────────────────────────
@@ -19,129 +31,164 @@ function injectCSS() {
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
+    @keyframes zen-toast-in-bottom {
+      0%   { opacity: 0; transform: translateY(20px) scale(0.92); }
+      60%  { opacity: 1; transform: translateY(-3px) scale(1.01); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes zen-toast-in-top {
+      0%   { opacity: 0; transform: translateY(-20px) scale(0.92); }
+      60%  { opacity: 1; transform: translateY(3px) scale(1.01); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @keyframes zen-toast-out-bottom {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(16px) scale(0.95); }
+    }
+
+    @keyframes zen-toast-out-top {
+      0%   { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-16px) scale(0.95); }
+    }
+
+    @keyframes zen-badge-in {
+      0%   { opacity: 0; transform: translateX(-8px) scale(0.85); }
+      70%  { opacity: 1; transform: translateX(1px) scale(1.02); }
+      100% { opacity: 1; transform: translateX(0) scale(1); }
+    }
+
+    @keyframes zen-dot-pulse {
+      0%, 100% { box-shadow: 0 0 4px 1px var(--zen-glow); }
+      50%      { box-shadow: 0 0 10px 3px var(--zen-glow); }
+    }
+
     #${TOAST_ID} {
+      --zen-accent: ${accentColor};
+      --zen-glow: ${accentColor}66;
       position: fixed;
       z-index: 2147483647;
       display: flex;
       align-items: center;
-      gap: 12px;
-      background: rgba(18, 18, 18, 0.85) !important;
-      backdrop-filter: blur(12px) !important;
-      -webkit-backdrop-filter: blur(12px) !important;
-      border: 1px solid rgba(255, 255, 255, 0.12) !important;
-      padding: 8px 14px !important;
-      border-radius: 12px !important;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-      font-family: system-ui, -apple-system, sans-serif !important;
+      gap: 0px;
+      padding: 0 !important;
+      border-radius: 14px !important;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
       color: #ffffff !important;
-      transition: opacity 0.25s ease, transform 0.25s ease !important;
       user-select: none !important;
-      opacity: 0;
-      pointer-events: none;
-      font-size: 12px !important;
-    }
-
-    #${TOAST_ID}.visible {
-      opacity: 1;
       pointer-events: auto;
+      opacity: 0;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
     }
 
-    /* Positions */
-    #${TOAST_ID}.top-left { top: 24px !important; left: 24px !important; transform: translateY(-10px); }
-    #${TOAST_ID}.top-right { top: 24px !important; right: 24px !important; transform: translateY(-10px); }
-    #${TOAST_ID}.bottom-left { bottom: 24px !important; left: 24px !important; transform: translateY(10px); }
-    #${TOAST_ID}.bottom-right { bottom: 24px !important; right: 24px !important; transform: translateY(10px); }
-
-    #${TOAST_ID}.visible.top-left,
-    #${TOAST_ID}.visible.top-right,
-    #${TOAST_ID}.visible.bottom-left,
-    #${TOAST_ID}.visible.bottom-right {
-      transform: translateY(0);
-    }
-
-    /* Indicators */
-    .zen-keylock-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .zen-keylock-badge {
+    /* Glass container (inner wrapper) */
+    #${TOAST_ID} .zen-toast-glass {
+      position: relative;
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 8px !important;
-      background: rgba(255, 255, 255, 0.06) !important;
-      border: 1px solid rgba(255, 255, 255, 0.04) !important;
-      border-radius: 6px !important;
-      font-weight: 600 !important;
-      letter-spacing: 0.5px !important;
-      font-size: 11px !important;
-      color: rgba(255, 255, 255, 0.4) !important;
-      transition: all 0.2s ease !important;
+      padding: 8px 8px 8px 12px !important;
+      background: rgba(22, 22, 26, 0.82) !important;
+      backdrop-filter: blur(20px) saturate(1.6) !important;
+      -webkit-backdrop-filter: blur(20px) saturate(1.6) !important;
+      border: 1px solid rgba(255, 255, 255, 0.08) !important;
+      border-radius: 14px !important;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.04),
+        0 8px 40px rgba(0, 0, 0, 0.45),
+        0 0 20px -4px var(--zen-glow) !important;
     }
 
-    .zen-keylock-badge.active {
-      background: rgba(34, 197, 94, 0.15) !important;
-      border-color: rgba(34, 197, 94, 0.3) !important;
-      color: #22c55e !important;
+    /* Accent gradient line at top of toast */
+    #${TOAST_ID} .zen-toast-glass::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 12px; right: 12px;
+      height: 1.5px;
+      background: linear-gradient(90deg, transparent, var(--zen-accent), transparent) !important;
+      opacity: 0.7;
+      border-radius: 1px;
+    }
+
+    /* Positions */
+    #${TOAST_ID}.top-left     { top: 20px !important; left: 20px !important;  bottom: auto !important; right: auto !important; }
+    #${TOAST_ID}.top-right    { top: 20px !important; right: 20px !important; bottom: auto !important; left: auto !important;  }
+    #${TOAST_ID}.bottom-left  { bottom: 20px !important; left: 20px !important;  top: auto !important; right: auto !important; }
+    #${TOAST_ID}.bottom-right { bottom: 20px !important; right: 20px !important; top: auto !important; left: auto !important;  }
+
+    /* Animate in */
+    #${TOAST_ID}.zen-in.bottom-left,
+    #${TOAST_ID}.zen-in.bottom-right {
+      animation: zen-toast-in-bottom 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+    #${TOAST_ID}.zen-in.top-left,
+    #${TOAST_ID}.zen-in.top-right {
+      animation: zen-toast-in-top 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    /* Animate out */
+    #${TOAST_ID}.zen-out.bottom-left,
+    #${TOAST_ID}.zen-out.bottom-right {
+      animation: zen-toast-out-bottom 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+    }
+    #${TOAST_ID}.zen-out.top-left,
+    #${TOAST_ID}.zen-out.top-right {
+      animation: zen-toast-out-top 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
+    }
+
+    /* Badge */
+    .zen-keylock-badge {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 10px 5px 8px !important;
+      background: rgba(255, 255, 255, 0.05) !important;
+      border: 1px solid rgba(255, 255, 255, 0.06) !important;
+      border-radius: 8px !important;
+      font-weight: 500 !important;
+      font-size: 11.5px !important;
+      line-height: 1 !important;
+      color: var(--zen-accent) !important;
+      opacity: 0;
+      animation: zen-badge-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    .zen-keylock-badge .zen-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--zen-accent);
+      opacity: 0.85;
     }
 
     .zen-keylock-dot {
-      width: 6px;
-      height: 6px;
+      width: 5px;
+      height: 5px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.2);
-      transition: all 0.2s ease !important;
-    }
-
-    .zen-keylock-badge.active .zen-keylock-dot {
-      background: #22c55e !important;
-      box-shadow: 0 0 8px rgba(34, 197, 94, 0.6) !important;
-    }
-
-    /* Corner Selector Grid */
-    .zen-keylock-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 8px);
-      gap: 4px;
-      border-left: 1px solid rgba(255, 255, 255, 0.15);
-      padding-left: 10px;
-    }
-
-    .zen-keylock-cell {
-      width: 8px;
-      height: 8px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 2px;
-      cursor: pointer;
-      transition: background 0.15s ease !important;
-    }
-
-    .zen-keylock-cell:hover {
-      background: rgba(255, 255, 255, 0.6) !important;
-    }
-
-    .zen-keylock-cell.active {
-      background: #22c55e !important;
+      background: var(--zen-accent) !important;
+      animation: zen-dot-pulse 2s ease-in-out infinite;
+      flex-shrink: 0;
     }
 
     /* Close button */
     .zen-keylock-close {
-      background: none !important;
-      border: none !important;
-      color: rgba(255, 255, 255, 0.4) !important;
-      font-size: 16px !important;
+      all: unset !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 22px !important;
+      height: 22px !important;
+      border-radius: 6px !important;
+      color: rgba(255, 255, 255, 0.3) !important;
       cursor: pointer !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-      border-radius: 50% !important;
-      transition: all 0.2s ease !important;
+      transition: all 0.18s ease !important;
+      flex-shrink: 0;
+      font-size: 15px !important;
+      line-height: 1 !important;
     }
 
     .zen-keylock-close:hover {
@@ -152,145 +199,65 @@ function injectCSS() {
     (document.head || document.documentElement).appendChild(style);
 }
 
-// ─── DOM Toast Creation ──────────────────────────────────────────
-function createToast() {
-    if (document.getElementById(TOAST_ID)) return;
+// ─── Render toast with only active lock badges ───────────────────
+function renderToast() {
+    const activeKeys = Object.keys(states).filter(k => states[k]);
+
+    // No locks active → dismiss toast with animation
+    if (activeKeys.length === 0 || isDismissed) {
+        dismissAnimated();
+        return;
+    }
+
+    // Remove old toast (no animation, we rebuild)
+    const old = document.getElementById(TOAST_ID);
+    if (old) old.remove();
 
     const toast = document.createElement("div");
     toast.id = TOAST_ID;
-    toast.className = `${activeCorner}`;
+    toast.className = `${activeCorner} zen-in`;
+
+    let badgesHTML = "";
+    activeKeys.forEach((key, i) => {
+        const delay = i * 0.07;
+        badgesHTML += `
+            <div class="zen-keylock-badge" style="animation-delay: ${delay}s;">
+                <span class="zen-icon">${ICONS[key]}</span>
+                <span>${LABELS[key]}</span>
+                <div class="zen-keylock-dot"></div>
+            </div>
+        `;
+    });
 
     toast.innerHTML = `
-    <div class="zen-keylock-container">
-      <div class="zen-keylock-badge" id="zen-badge-caps">
-        <div class="zen-keylock-dot"></div>CAPS
-      </div>
-      <div class="zen-keylock-badge" id="zen-badge-num">
-        <div class="zen-keylock-dot"></div>NUM
-      </div>
-      <div class="zen-keylock-badge" id="zen-badge-scroll">
-        <div class="zen-keylock-dot"></div>SCRL
-      </div>
-    </div>
-    
-    <div class="zen-keylock-grid" title="Position Toast">
-      <div class="zen-keylock-cell" data-corner="top-left" title="Top Left"></div>
-      <div class="zen-keylock-cell" data-corner="top-right" title="Top Right"></div>
-      <div class="zen-keylock-cell" data-corner="bottom-left" title="Bottom Left"></div>
-      <div class="zen-keylock-cell" data-corner="bottom-right" title="Bottom Right"></div>
-    </div>
-
-    <button class="zen-keylock-close" title="Dismiss Toast">&times;</button>
-  `;
+        <div class="zen-toast-glass">
+            ${badgesHTML}
+            <button class="zen-keylock-close" title="Dismiss">&times;</button>
+        </div>
+    `;
 
     document.documentElement.appendChild(toast);
 
-    // Click to reposition
-    toast.querySelectorAll(".zen-keylock-cell").forEach(cell => {
-        cell.addEventListener("click", () => {
-            const corner = cell.getAttribute("data-corner");
-            updatePosition(corner);
-        });
+    toast.querySelector(".zen-keylock-close").addEventListener("click", (e) => {
+        e.stopPropagation();
+        isDismissed = true;
+        dismissAnimated();
     });
-
-    // Close button click
-    toast.querySelector(".zen-keylock-close").addEventListener("click", () => {
-        dismissToast();
-    });
-
-    // Hover prevents fading out
-    toast.addEventListener("mouseenter", () => {
-        clearTimeout(fadeTimeout);
-    });
-    toast.addEventListener("mouseleave", () => {
-        startFadeTimer(1500);
-    });
-
-    updateUI();
 }
 
-// ─── Update position ──────────────────────────────────────────────
-function updatePosition(corner) {
-    activeCorner = corner;
+function dismissAnimated() {
     const toast = document.getElementById(TOAST_ID);
-    if (toast) {
-        toast.className = `${activeCorner} visible`;
-        // Update active dot in grid
-        toast.querySelectorAll(".zen-keylock-cell").forEach(cell => {
-            if (cell.getAttribute("data-corner") === corner) {
-                cell.classList.add("active");
-            } else {
-                cell.classList.remove("active");
-            }
-        });
-    }
+    if (!toast || toast.classList.contains("zen-out")) return;
 
-    // Save preference to extension storage
-    browser.storage.local.set({ keylockPosition: corner }).catch(() => {});
+    toast.classList.remove("zen-in");
+    toast.classList.add("zen-out");
+
+    toast.addEventListener("animationend", () => {
+        toast.remove();
+    }, { once: true });
 }
 
-// ─── Update Indicators UI ─────────────────────────────────────────
-function updateUI() {
-    const toast = document.getElementById(TOAST_ID);
-    if (!toast) return;
-
-    const badges = {
-        CapsLock: document.getElementById("zen-badge-caps"),
-        NumLock: document.getElementById("zen-badge-num"),
-        ScrollLock: document.getElementById("zen-badge-scroll")
-    };
-
-    for (let key in badges) {
-        if (badges[key]) {
-            if (states[key]) {
-                badges[key].classList.add("active");
-            } else {
-                badges[key].classList.remove("active");
-            }
-        }
-    }
-
-    // Also update grid active cell status
-    toast.querySelectorAll(".zen-keylock-cell").forEach(cell => {
-        if (cell.getAttribute("data-corner") === activeCorner) {
-            cell.classList.add("active");
-        } else {
-            cell.classList.remove("active");
-        }
-    });
-}
-
-// ─── Show / Hide / Fade ───────────────────────────────────────────
-function showToast() {
-    if (!isEnabled || isDismissed) return;
-
-    createToast();
-    const toast = document.getElementById(TOAST_ID);
-    if (toast) {
-        toast.classList.add("visible");
-        startFadeTimer(3000);
-    }
-}
-
-function dismissToast() {
-    isDismissed = true;
-    const toast = document.getElementById(TOAST_ID);
-    if (toast) {
-        toast.classList.remove("visible");
-    }
-}
-
-function startFadeTimer(duration) {
-    clearTimeout(fadeTimeout);
-    fadeTimeout = setTimeout(() => {
-        const toast = document.getElementById(TOAST_ID);
-        if (toast) {
-            toast.classList.remove("visible");
-        }
-    }, duration);
-}
-
-// ─── Lock State Detection ─────────────────────────────────────────
+// ─── Lock State Detection ────────────────────────────────────────
 function checkLockStates(e) {
     if (typeof e.getModifierState !== "function") return;
 
@@ -302,29 +269,24 @@ function checkLockStates(e) {
 
     if (changed) {
         states = { CapsLock: caps, NumLock: num, ScrollLock: scroll };
-        updateUI();
-        
-        // Only pop up the toast if the user explicitly pressed one of the lock keys
-        const isLockKey = e.type.startsWith("key") && 
+
+        const isLockKey = e.type.startsWith("key") &&
             (e.key === "CapsLock" || e.key === "NumLock" || e.key === "ScrollLock" || e.key === "Scroll");
-            
+
         if (isLockKey) {
-            // Reset dismissed state when a key is explicitly pressed so they see the toast
             isDismissed = false;
-            showToast();
         }
+
+        if (isEnabled) renderToast();
     }
 }
 
-// ─── Enable / Disable ─────────────────────────────────────────────
+// ─── Enable / Disable ────────────────────────────────────────────
 function enable() {
     if (isEnabled) return;
     isEnabled = true;
     injectCSS();
 }
-
-// Ensure first load does state check/inject CSS
-enable();
 
 function disable() {
     isEnabled = false;
@@ -332,39 +294,82 @@ function disable() {
     const style = document.getElementById(STYLE_ID);
     if (toast) toast.remove();
     if (style) style.remove();
-    clearTimeout(fadeTimeout);
 }
 
-// ─── Event Listeners ──────────────────────────────────────────────
+// ─── Accent color update ─────────────────────────────────────────
+function setAccentColor(color) {
+    if (!color) return;
+    accentColor = color;
+
+    // Update CSS custom properties in existing style
+    const style = document.getElementById(STYLE_ID);
+    if (style) {
+        style.textContent = style.textContent
+            .replace(/--zen-accent:\s*[^;]+;/g, `--zen-accent: ${color};`)
+            .replace(/--zen-glow:\s*[^;]+;/g, `--zen-glow: ${color}66;`);
+    }
+
+    // Re-render if visible
+    if (isEnabled && !isDismissed) renderToast();
+}
+
+// ─── Color utility ───────────────────────────────────────────────
+function hexToRgba(hex, alpha) {
+    if (hex.startsWith("rgb")) return hex.replace(")", `, ${alpha})`).replace("rgb(", "rgba(");
+    hex = hex.replace("#", "");
+    if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// ─── Event Listeners ─────────────────────────────────────────────
 window.addEventListener("keydown", checkLockStates, { passive: true });
 window.addEventListener("keyup", checkLockStates, { passive: true });
 window.addEventListener("mousedown", checkLockStates, { passive: true });
 
-// ─── Extension Messages ───────────────────────────────────────────
+// ─── Extension Messages ──────────────────────────────────────────
 browser.runtime.onMessage.addListener((msg) => {
-    if (msg && msg.hasOwnProperty("toggle")) {
+    if (!msg) return;
+
+    if (msg.hasOwnProperty("toggle")) {
         if (msg.toggle) enable();
         else disable();
     }
+
+    if (msg.hasOwnProperty("updatePosition")) {
+        activeCorner = msg.updatePosition;
+        if (isEnabled && !isDismissed) renderToast();
+    }
+
+    if (msg.hasOwnProperty("updateColor") && msg.updateColor) {
+        setAccentColor(msg.updateColor);
+    }
+
+    if (msg.hasOwnProperty("themeColor") && msg.themeColor) {
+        setAccentColor(msg.themeColor);
+    }
 });
 
-// ─── Initialization ──────────────────────────────────────────────
-// Load saved corner preference and current extension status
+// ─── Initialization ─────────────────────────────────────────────
 Promise.all([
     browser.storage.local.get("keylockPosition"),
     browser.runtime.sendMessage({ action: "getState" })
 ]).then(([storage, stateResponse]) => {
     if (storage && storage.keylockPosition) {
-        updatePosition(storage.keylockPosition);
+        activeCorner = storage.keylockPosition;
     }
-    if (stateResponse && stateResponse.enabled !== undefined) {
-        if (stateResponse.enabled) {
+    if (stateResponse) {
+        if (stateResponse.effectiveColor) {
+            accentColor = stateResponse.effectiveColor;
+        } else if (stateResponse.themeColor) {
+            accentColor = stateResponse.themeColor;
+        }
+        if (stateResponse.enabled !== false) {
             enable();
-        } else {
-            disable();
         }
     }
-}).catch((err) => {
-    console.debug("Zen Key Lock: Initialization state check failed.", err);
-    enable(); // Fallback to enabled
+}).catch(() => {
+    enable();
 });
