@@ -2,7 +2,7 @@ const TOAST_ID = "zen-keylock-toast";
 const STYLE_ID = "zen-keylock-style";
 
 let activeCorner = "bottom-left";
-let isEnabled = true;
+let isEnabled = false; // Initialized to false so that the first enable() call actually injects CSS
 let isDismissed = false;
 let fadeTimeout = null;
 
@@ -298,11 +298,21 @@ function checkLockStates(e) {
     const num = e.getModifierState("NumLock");
     const scroll = e.getModifierState("ScrollLock");
 
-    // Check if any lock states changed
-    if (caps !== states.CapsLock || num !== states.NumLock || scroll !== states.ScrollLock) {
+    const changed = (caps !== states.CapsLock || num !== states.NumLock || scroll !== states.ScrollLock);
+
+    if (changed) {
         states = { CapsLock: caps, NumLock: num, ScrollLock: scroll };
         updateUI();
-        showToast();
+        
+        // Only pop up the toast if the user explicitly pressed one of the lock keys
+        const isLockKey = e.type.startsWith("key") && 
+            (e.key === "CapsLock" || e.key === "NumLock" || e.key === "ScrollLock" || e.key === "Scroll");
+            
+        if (isLockKey) {
+            // Reset dismissed state when a key is explicitly pressed so they see the toast
+            isDismissed = false;
+            showToast();
+        }
     }
 }
 
@@ -312,6 +322,9 @@ function enable() {
     isEnabled = true;
     injectCSS();
 }
+
+// Ensure first load does state check/inject CSS
+enable();
 
 function disable() {
     isEnabled = false;
@@ -342,7 +355,7 @@ Promise.all([
     browser.runtime.sendMessage({ action: "getState" })
 ]).then(([storage, stateResponse]) => {
     if (storage && storage.keylockPosition) {
-        activeCorner = storage.keylockPosition;
+        updatePosition(storage.keylockPosition);
     }
     if (stateResponse && stateResponse.enabled !== undefined) {
         if (stateResponse.enabled) {
