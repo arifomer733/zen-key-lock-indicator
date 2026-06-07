@@ -217,32 +217,55 @@ function renderToast() {
     toast.id = TOAST_ID;
     toast.className = `${activeCorner} zen-in`;
 
-    let badgesHTML = "";
+    const glass = document.createElement("div");
+    glass.className = "zen-toast-glass";
+
+    // Add badges
+    const parser = new DOMParser();
     activeKeys.forEach((key, i) => {
         const delay = i * 0.07;
-        badgesHTML += `
-            <div class="zen-keylock-badge" style="animation-delay: ${delay}s;">
-                <span class="zen-icon">${ICONS[key]}</span>
-                <span>${LABELS[key]}</span>
-                <div class="zen-keylock-dot"></div>
-            </div>
-        `;
+        const badge = document.createElement("div");
+        badge.className = "zen-keylock-badge";
+        badge.style.animationDelay = `${delay}s`;
+
+        // Safe SVG Injection via DOMParser
+        const iconSpan = document.createElement("span");
+        iconSpan.className = "zen-icon";
+        try {
+            const doc = parser.parseFromString(ICONS[key], "image/svg+xml");
+            if (doc.documentElement && doc.documentElement.nodeName !== "parsererror") {
+                iconSpan.appendChild(doc.documentElement);
+            }
+        } catch (e) {
+            console.debug("SVG parsing error", e);
+        }
+
+        const labelSpan = document.createElement("span");
+        labelSpan.textContent = LABELS[key];
+
+        const dot = document.createElement("div");
+        dot.className = "zen-keylock-dot";
+
+        badge.appendChild(iconSpan);
+        badge.appendChild(labelSpan);
+        badge.appendChild(dot);
+        glass.appendChild(badge);
     });
 
-    toast.innerHTML = `
-        <div class="zen-toast-glass">
-            ${badgesHTML}
-            <button class="zen-keylock-close" title="Dismiss">&times;</button>
-        </div>
-    `;
-
-    document.documentElement.appendChild(toast);
-
-    toast.querySelector(".zen-keylock-close").addEventListener("click", (e) => {
+    // Close button
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "zen-keylock-close";
+    closeBtn.title = "Dismiss";
+    closeBtn.textContent = "×";
+    closeBtn.addEventListener("click", (e) => {
         e.stopPropagation();
         isDismissed = true;
         dismissAnimated();
     });
+    glass.appendChild(closeBtn);
+
+    toast.appendChild(glass);
+    document.documentElement.appendChild(toast);
 }
 
 function dismissAnimated() {

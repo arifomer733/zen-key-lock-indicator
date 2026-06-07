@@ -4,12 +4,12 @@ A lightweight, beautiful, glassmorphic browser extension for Zen Browser (Firefo
 
 ## Features
 
-- 🖥️ **On-Screen Toast**: Displays active locks in a beautiful glassmorphic visual.
-- ⚡ **Real-Time Detection**: Instantly detects and syncs status when typing or clicking anywhere.
-- 🕒 **Auto-Fade**: Appears on status change and fades out after 3 seconds of inactivity.
-- 🧭 **Repositionable**: Move it to any corner of the screen (Top-Left, Top-Right, Bottom-Left, Bottom-Right) using the grid layout picker.
-- 💾 **Persistent Settings**: Remembers the selected corner layout using `browser.storage.local`.
-- ❌ **Dismissible**: Click the `×` button to close the notification for the current page session.
+- **On-Screen Toast**: Displays active locks in a beautiful glassmorphic visual.
+- **Real-Time Detection**: Instantly detects and syncs status when typing or clicking anywhere.
+- **Auto-Fade**: Appears on status change and fades out after 3 seconds of inactivity.
+- **Repositionable**: Move it to any corner of the screen (Top-Left, Top-Right, Bottom-Left, Bottom-Right) using the grid layout picker.
+- **Persistent Settings**: Remembers the selected corner layout using `browser.storage.local`.
+- **Dismissible**: Click the `×` button to close the notification for the current page session.
 
 ## Installation
 
