@@ -1,0 +1,7 @@
+# Package archives
+*.zip
+*.xpi
+
+# OS metadata
+.DS_Store
+Thumbs.db

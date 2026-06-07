@@ -1,0 +1,41 @@
+{
+    "manifest_version": 2,
+    "name": "Zen Key Lock Indicator",
+    "version": "1.0",
+    "description": "On-screen floating toast displaying active key locks (Caps Lock, Num Lock, Scroll Lock) with customizable layout positions.",
+    "permissions": [
+        "storage",
+        "tabs",
+        "<all_urls>"
+    ],
+    "background": {
+        "scripts": [
+            "background.js"
+        ],
+        "persistent": false
+    },
+    "browser_action": {
+        "default_title": "Toggle Key Lock Indicator"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "run_at": "document_start"
+        }
+    ],
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "zen-key-lock-indicator@example.com",
+            "data_collection_permissions": {
+                "required": [
+                    "none"
+                ]
+            }
+        }
+    }
+}
